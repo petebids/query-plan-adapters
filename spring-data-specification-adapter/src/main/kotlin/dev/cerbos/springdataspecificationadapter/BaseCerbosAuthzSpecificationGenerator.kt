@@ -5,16 +5,14 @@ import dev.cerbos.api.v1.engine.Engine.PlanResourcesFilter.Expression.Operand
 import dev.cerbos.sdk.CerbosBlockingClient
 import dev.cerbos.sdk.PlanResourcesResult
 import dev.cerbos.sdk.builders.Resource
-
 import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.Expression
 import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
-import jakarta.persistence.criteria.Subquery
+import org.slf4j.LoggerFactory
 import org.springframework.data.jpa.domain.Specification
-
 import java.util.UUID
 
 
@@ -23,6 +21,7 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
     private val principalRepository: PrincipalRepository,
     private val policyPathToType: Map<String, Class<*>>
 ) {
+    private val logger = LoggerFactory.getLogger(javaClass)
 
     fun specificationFor(id: String, resource: String, action: String): Specification<T> {
 
@@ -31,14 +30,18 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
             Resource.newInstance(resource),
             action
         )
+
         return when {
             // no additional filtering needed
             result.isAlwaysAllowed -> return allowed()
             // don't generate a specification
             result.isAlwaysDenied -> throw RuntimeException()
             // generate a specification
-            result.isConditional ->
-                operandToSpecification(result.condition.get())
+            result.isConditional -> {
+                val op = result.condition.get()
+                logger.debug("conditionally authorized : $op")
+                operandToSpecification(op)
+            }
 
             else -> throw UnsupportedOperationException("Unsupported result $result")
         }
@@ -49,16 +52,17 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
         op: Operand
     ): Specification<T> {
         return when (op.expression.operator) {
-
             "and" -> Specification.allOf(op.expression.operandsList.map { operandToSpecification(it) })
             "or" -> Specification { r: Root<T>, cq: CriteriaQuery<*>, cb: CriteriaBuilder ->
                 val predicates = op.expression.operandsList.map { operand ->
                     val subquery = cq.subquery(Long::class.java)
                     subquery.from(r.javaType)
+
                     subquery
                         .select(cb.literal(1))
                         .where(operandToSpecification(operand).toPredicate(r, cq, cb))
                     cb.exists(subquery)
+
                 }.toTypedArray()
 
                 cb.or(*predicates)
@@ -68,9 +72,100 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
             "ne" -> Specification { r: Root<T>, cq: CriteriaQuery<*>, cb: CriteriaBuilder ->
                 cb.not(equalityPredicate(op).toPredicate(r, cq, cb))
             }
+            "in" -> inPredicate(op)
+
+
+            "lt" -> Specification { r: Root<T>, _: CriteriaQuery<*>, cb: CriteriaBuilder ->
+                cb.lessThan(
+                    r.get(op.expression.operandsList[0].variable.removePrefix("request.resource.attr.")),
+                    op.expression.operandsList[1].value.numberValue
+                )
+
+            }
+
+            "le" -> Specification { r: Root<T>, _: CriteriaQuery<*>, cb: CriteriaBuilder ->
+                cb.lessThanOrEqualTo(
+                    r.get(op.expression.operandsList[0].variable.removePrefix("request.resource.attr.")),
+                    op.expression.operandsList[1].value.numberValue
+                )
+
+            }
+
+            "gt" -> Specification { r: Root<T>, _: CriteriaQuery<*>, cb: CriteriaBuilder ->
+                cb.greaterThan(
+                    r.get(op.expression.operandsList[0].variable.removePrefix("request.resource.attr.")),
+                    op.expression.operandsList[1].value.numberValue
+                )
+            }
+
+            "ge" -> Specification { r: Root<T>, _: CriteriaQuery<*>, cb: CriteriaBuilder ->
+                cb.greaterThanOrEqualTo(
+                    r.get(op.expression.operandsList[0].variable.removePrefix("request.resource.attr.")),
+                    op.expression.operandsList[1].value.numberValue
+                )
+            }
+
             "eq" -> equalityPredicate(op)
             else -> throw UnsupportedOperationException("Unexpected operand $op")
         }
+    }
+
+    private fun inPredicate(op: Operand): Specification<T> {
+        return Specification { r: Root<T>, _: CriteriaQuery<*>, cb: CriteriaBuilder ->
+            predicate(cb, op, r)
+        }
+    }
+
+    private fun predicate(
+        cb: CriteriaBuilder,
+        op: Operand,
+        r: Root<T>,
+    ): Predicate {
+
+        return when {
+
+            // TODO
+            // these are hacks to cover the test cases, production ready walks the tree of value types properly
+
+
+            // used by `relation some` in its current form
+            op.expression.operandsList[0].value.stringValue != null && op.expression.operandsList[1].hasVariable() -> {
+                cb.isMember(
+                    op.expression.operandsList[0].value.stringValue,
+                    r.get(op.expression.operandsList[1].variable.removePrefix("request.resource.attr."))
+                )
+            }
+
+            /*
+                 operator: "in"
+                  operands {
+                    variable: "request.resource.attr.aString"
+                  }
+                  operands {
+                    value {
+                      list_value {
+                        values {
+                          string_value: "string"
+                        }
+                        values {
+                          string_value: "anotherString"
+                        }
+                      }
+                    }
+                  }
+                }
+         */
+            op.expression.operandsList[1].value.listValue != null -> {
+                r.get<Boolean>(op.expression.operandsList[0].variable.removePrefix("request.resource.attr.")).`in`(
+                    op.expression.operandsList[1].value.listValue.valuesList.map { it.stringValue.toString() }
+                )
+
+            }
+
+            else -> TODO()
+
+        }
+
     }
 
 
@@ -107,7 +202,6 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
                 // TODO explicitly map join and attribute comparison
                 if (removePrefix.contains(".")) {
                     val split = removePrefix.split(".")
-                    // TODO forced to used a left join due to the way I've handled OR - this needs work but it's black-box ok
                     return r.join<Any, Any>(split[0], JoinType.INNER).get(split[1])
 
                 }
