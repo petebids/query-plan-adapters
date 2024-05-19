@@ -21,7 +21,9 @@ class TestConfig {
         principalRepository: MockPrincipalRepository
     ): ResourceSpecificationGenerator = ResourceSpecificationGenerator(
         cerbos, principalRepository, mapOf(
+            "request.resource.attr.createdBy" to String::class.java,
             "request.resource.attr.aBool" to Boolean::class.java,
+            "request.resource.attr.nested.aBool" to Boolean::class.java,
             "request.resource.attr.aString" to String::class.java
         )
     )

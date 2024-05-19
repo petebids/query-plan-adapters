@@ -6,4 +6,4 @@ class ResourceSpecificationGenerator(
     cerbos: CerbosBlockingClient,
     principalRepository: PrincipalRepository,
     policyPathToType: Map<String, Class<*>>
-) : BaseCerbosAuthzSpecificationGenerator<Resource>(cerbos, principalRepository, policyPathToType)
+) : BaseCerbosAuthZSpecificationGeneratorV2<Resource>(cerbos, principalRepository, policyPathToType)

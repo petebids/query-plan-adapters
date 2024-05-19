@@ -1,19 +1,22 @@
 package dev.cerbos.springdataspecificationadapter
 
-import com.jayway.jsonpath.Criteria
-import dev.cerbos.api.v1.engine.Engine
+import com.google.protobuf.util.JsonFormat
 import dev.cerbos.api.v1.engine.Engine.PlanResourcesFilter.Expression.Operand
-import dev.cerbos.api.v1.response.Response
 import dev.cerbos.sdk.CerbosBlockingClient
-import dev.cerbos.sdk.PlanResourcesResult
+import dev.cerbos.sdk.CerbosClientBuilder
 import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.CriteriaQuery
+import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.ArgumentCaptor
+import org.mockito.Captor
 import org.mockito.Mock
-import org.mockito.Mockito
-import org.mockito.Mockito.*
+import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
+
 
 @ExtendWith(MockitoExtension::class)
 class SpringDataSpecificationAdapterUnitTests : SpringDataSpecificationAdapterTests {
@@ -28,27 +31,55 @@ class SpringDataSpecificationAdapterUnitTests : SpringDataSpecificationAdapterTe
     @Mock
     lateinit var cb: CriteriaBuilder
 
-    @Mock
-    lateinit var cerbos : CerbosBlockingClient
+    @Captor
+    lateinit var predicateCaptor: ArgumentCaptor<Predicate>
 
-    @Mock
-    lateinit var principalRepository: MockPrincipalRepository
+    val cerbos: CerbosBlockingClient =
+        CerbosClientBuilder("localhost:3593").withPlaintext().withInsecure().buildBlockingClient()
+
+    val principalRepository = MockPrincipalRepository()
 
     val resourceSpecificationGenerator = ResourceSpecificationGenerator(cerbos, principalRepository, emptyMap())
 
+
+    @Test
     override fun `always-allow`() {
 
-        `when`(
-            cerbos.plan(any(), any(), any())
-        ).then {
+        val specificationFor = resourceSpecificationGenerator.specificationFor(
+            id = "principal",
+            resource = "resource",
+            action = "always-allow"
+        )
 
-        }
+        val predicate = specificationFor.toPredicate(r, cq, cb)
 
+        verify(cb).literal("1")
 
     }
 
+
+    @Disabled
+    @Test
     override fun `always-deny`() {
-        TODO("Not yet implemented")
+
+        val opBuilder = Operand.newBuilder()
+        JsonFormat.parser().ignoringUnknownFields().merge(
+            """
+                "expression": {
+    "operator": "eq",
+    "operands": [{
+      "variable": "request.resource.attr.aBool"
+    }, {
+      "value": true
+    }]
+  }
+}
+          """, opBuilder
+        )
+
+        opBuilder.build()
+
+
     }
 
     override fun `explicit-deny`() {

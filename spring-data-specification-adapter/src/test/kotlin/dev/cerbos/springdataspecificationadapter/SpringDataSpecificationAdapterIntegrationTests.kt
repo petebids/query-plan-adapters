@@ -107,7 +107,6 @@ class SpringDataSpecificationAdapterIntegrationTests : PostgresJpaTestcontainers
 
         val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
             id = "principal", resource = "resource", action = "and"
-
         )
         resourceRepository.findAll(specification)
 

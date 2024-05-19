@@ -1,5 +1,6 @@
 package dev.cerbos.springdataspecificationadapter
 
+
 import com.google.protobuf.Value
 import com.google.protobuf.util.JsonFormat
 import dev.cerbos.api.v1.engine.Engine
@@ -18,7 +19,7 @@ import org.springframework.data.jpa.domain.Specification
 import java.util.UUID
 
 
-open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
+open class BaseCerbosAuthZSpecificationGeneratorV2<T : Any>(
     private val cerbos: CerbosBlockingClient,
     private val principalRepository: PrincipalRepository,
     private val policyPathToType: Map<String, Class<*>>
@@ -35,9 +36,7 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
 
         return when {
             // no additional filtering needed
-            result.isAlwaysAllowed -> {
-                logger.warn("unconditional access provided to principal $id for action $action upon resourceKind $resource" )
-                return allowed()}
+            result.isAlwaysAllowed -> return allowed()
             // don't generate a specification
             result.isAlwaysDenied -> throw RuntimeException()
             // generate a specification
@@ -58,26 +57,13 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
     ): Specification<T> {
         return when (op.expression.operator) {
             "and" -> Specification.allOf(op.expression.operandsList.map { operandToSpecification(it) })
-            "or" -> Specification { r: Root<T>, cq: CriteriaQuery<*>, cb: CriteriaBuilder ->
-                val predicates = op.expression.operandsList.map { operand ->
-                    val subquery = cq.subquery(Long::class.java)
-                    subquery.from(r.javaType)
-
-                    subquery
-                        .select(cb.literal(1))
-                        .where(operandToSpecification(operand).toPredicate(r, cq, cb))
-                    cb.exists(subquery)
-
-                }.toTypedArray()
-
-                cb.or(*predicates)
-            }
+            "or" -> Specification.anyOf(op.expression.operandsList.map { operandToSpecification(it) })
             "not" -> Specification.not(Specification.allOf(
                 op.expression.operandsList.map { operandToSpecification(it) }))
             "ne" -> Specification { r: Root<T>, cq: CriteriaQuery<*>, cb: CriteriaBuilder ->
-                cb.not(equalityPredicate(op).toPredicate(r, cq, cb))
+                cb.not(equalsSpec(op).toPredicate(r, cq, cb))
             }
-            "in" -> inPredicate(op)
+            "in" -> inSpec(op)
 
             "lt" -> Specification { r: Root<T>, _: CriteriaQuery<*>, cb: CriteriaBuilder ->
                 cb.lessThan(
@@ -108,12 +94,12 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
                 )
             }
 
-            "eq" -> equalityPredicate(op)
+            "eq" -> equalsSpec(op)
             else -> throw UnsupportedOperationException("Unexpected operand $op")
         }
     }
 
-    private fun inPredicate(op: Operand): Specification<T> {
+    private fun inSpec(op: Operand): Specification<T> {
         return Specification { r: Root<T>, _: CriteriaQuery<*>, cb: CriteriaBuilder ->
             predicate(cb, op, r)
         }
@@ -172,7 +158,7 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
     }
 
 
-    private fun equalityPredicate(
+    private fun equalsSpec(
         op: Operand
     ): Specification<T> =
         Specification { r: Root<T>, _, cb ->
@@ -228,7 +214,7 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
     }
 
     private fun <T> allowed(): Specification<T> = Specification { _: Root<T>, _, cb ->
-        cb.equal(cb.literal(1), cb.literal(1))
+        cb.equal(cb.literal("1"), "1")
 
     }
 
