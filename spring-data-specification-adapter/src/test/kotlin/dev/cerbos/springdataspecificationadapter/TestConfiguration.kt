@@ -13,7 +13,8 @@ class TestConfig {
     fun mockPrincipalRepo(): MockPrincipalRepository = MockPrincipalRepository()
 
     @Bean
-    fun cerbos(): CerbosBlockingClient = CerbosClientBuilder("localhost:3593").withPlaintext().withInsecure().buildBlockingClient()
+    fun cerbos(cerbosConfigProps: CerbosConfigProps): CerbosBlockingClient =
+        CerbosClientBuilder(cerbosConfigProps.address).withPlaintext().withInsecure().buildBlockingClient()
 
     @Bean
     fun resourceSpecificationGenerator(

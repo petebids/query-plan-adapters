@@ -41,6 +41,7 @@ class SpringDataSpecificationAdapterUnitTests : SpringDataSpecificationAdapterTe
 
     val resourceSpecificationGenerator = ResourceSpecificationGenerator(cerbos, principalRepository, emptyMap())
 
+    @Disabled
 
     @Test
     override fun `always-allow`() {

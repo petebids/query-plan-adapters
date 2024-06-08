@@ -36,12 +36,14 @@ open class BaseCerbosAuthZSpecificationGeneratorV2<T : Any>(
 
         return when {
             // no additional filtering needed
-            result.isAlwaysAllowed -> return allowed()
+            result.isAlwaysAllowed -> {
+                logger.debug("unconditional access for action $action for  principal $id granted to resource kind $resource")
+                return allowed()}
             // don't generate a specification
             result.isAlwaysDenied -> throw RuntimeException()
             // generate a specification
             result.isConditional -> {
-                val op: Engine.PlanResourcesFilter.Expression.Operand = result.condition.get()
+                val op: Operand = result.condition.get()
                 val json = JsonFormat.printer().print(op)
                 logger.debug("conditionally authorized : $json")
                 operandToSpecification(op)
@@ -214,7 +216,7 @@ open class BaseCerbosAuthZSpecificationGeneratorV2<T : Any>(
     }
 
     private fun <T> allowed(): Specification<T> = Specification { _: Root<T>, _, cb ->
-        cb.equal(cb.literal("1"), "1")
+        cb.equal(cb.literal(1), 1)
 
     }
 

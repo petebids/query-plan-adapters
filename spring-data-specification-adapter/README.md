@@ -7,5 +7,5 @@ No license nor warranty
 
 ## Run cerbos 
 ```shell
-cerbos server --config spring-data-specification-adapter/src/main/resources/cerbos_config.yaml
+cerbos server --config spring-data-specification-adapter/cerbos_config.yaml
 ```

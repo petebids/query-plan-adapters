@@ -42,7 +42,7 @@ open class BaseCerbosAuthzSpecificationGenerator<T : Any>(
             result.isAlwaysDenied -> throw RuntimeException()
             // generate a specification
             result.isConditional -> {
-                val op: Engine.PlanResourcesFilter.Expression.Operand = result.condition.get()
+                val op = result.condition.get()
                 val json = JsonFormat.printer().print(op)
                 logger.debug("conditionally authorized : $json")
                 operandToSpecification(op)

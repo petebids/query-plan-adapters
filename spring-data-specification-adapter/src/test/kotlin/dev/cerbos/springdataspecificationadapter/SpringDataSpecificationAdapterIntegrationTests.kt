@@ -1,28 +1,73 @@
 package dev.cerbos.springdataspecificationadapter
 
 
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.data.jpa.domain.Specification
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.utility.MountableFile
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 
 @SpringBootTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(TestConfig::class)
-class SpringDataSpecificationAdapterIntegrationTests : PostgresJpaTestcontainers(),
-    SpringDataSpecificationAdapterTests {
+class SpringDataSpecificationAdapterIntegrationTests {
 
+    // refactor this to  https://java.testcontainers.org/modules/docker_compose/
     companion object {
+        @Container
+        val cerbos: GenericContainer<*> = GenericContainer("cerbos/cerbos:0.36.0").apply {
+            this.withExposedPorts(3593)
+            this.withCopyToContainer(MountableFile.forClasspathResource("resource.yaml"), "/policies/resource.yaml")
+            this.withCopyToContainer(MountableFile.forClasspathResource("cerbos_config.yaml"), "config.yaml")
+            this.setCommand("server", "--config=config.yaml")
+            this.waitingFor(
+                LogMessageWaitStrategy()
+                    .withRegEx(".*Starting gRPC server.*")
+                    .withStartupTimeout(
+                        Duration.of(10L, ChronoUnit.SECONDS)
+                    )
+            )
+        }
 
-        @JvmField
-        val cerbos = GenericContainer("ghcr.io/cerbos/cerbos:dev")
-            .withExposedPorts(3592)
-            .setCommand("server")
+        @Container
+        val database: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:15.2").apply {
+            this.withPassword("postgres").withUsername("postgres")
+        }
 
+        @DynamicPropertySource
+        @JvmStatic
+        fun registerDynamicProperties(registry: DynamicPropertyRegistry) {
+            registry.add("spring.datasource.url", database::getJdbcUrl)
+            registry.add("spring.datasource.username", database::getUsername)
+            registry.add("spring.datasource.password", database::getPassword)
+            registry.add("spring.datasource.driver-class-name", database::getDriverClassName)
+            registry.add("spring.jpa.databasePlatform") { "org.hibernate.dialect.PostgreSQLDialect" }
+            val cerbosAddress : String = cerbos.host + ":" +cerbos.getMappedPort(3593)
+
+            registry.add("cerbos.address") { cerbosAddress}
+        }
+
+
+        @BeforeAll
+        @JvmStatic
+        fun start() {
+            database.start()
+            cerbos.start()
+        }
     }
 
 
@@ -32,21 +77,24 @@ class SpringDataSpecificationAdapterIntegrationTests : PostgresJpaTestcontainers
     @Autowired
     private lateinit var resourceSpecificationGenerator: ResourceSpecificationGenerator
 
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `always-allow`() {
+
+    @ParameterizedTest
+    @CsvSource(value = ["always-allow", "explicit-deny", "and", "equal", "ne", "and", "or", "nand", "nor", "in", "gt", "gte", "lt", "lte", "equal-nested", "relation-some", "relation-is-not"])
+    fun `smoke test with all actions`(action: String) {
+
 
         val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "always-allow"
+            id = "principal", resource = "resource", action = action
 
         )
         resourceRepository.findAll(specification)
 
+
     }
 
-    @Suppress("RemoveRedundantBackticks")
+
     @Test
-    override fun `always-deny`() {
+    fun `always-deny should throw a runtime exception`() {
 
         assertThrows<RuntimeException> {
             resourceSpecificationGenerator.specificationFor(
@@ -56,243 +104,5 @@ class SpringDataSpecificationAdapterIntegrationTests : PostgresJpaTestcontainers
         }
 
     }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `explicit-deny`() {
-
-
-        val specification = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "explicit-deny"
-
-        )
-        /*
-        assertEquals(not(Specification<Resource> { root, query, criteriaBuilder ->
-            criteriaBuilder.equal(criteriaBuilder.literal("1"), criteriaBuilder.literal("1"))
-        }), specification)
-
-
-         */
-        resourceRepository.findAll(specification)
-    }
-
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `equals`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "equal"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `ne`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "ne"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `and`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "and"
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `or`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "or"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    /*
-    * operator: "not"
-  operands {
-    expression {
-      operator: "and"
-      operands {
-        expression {
-          operator: "eq"
-          operands {
-            variable: "request.resource.attr.aBool"
-          }
-          operands {
-            value {
-              bool_value: true
-            }
-          }
-        }
-      }
-      operands {
-        expression {
-          operator: "ne"
-          operands {
-            variable: "request.resource.attr.aString"
-          }
-          operands {
-            value {
-              string_value: "string"
-            }
-          }
-        }
-      }
-    }
-  }
-}
-    select
-        r1_0.id,
-        r1_0.a_bool,
-        r1_0.a_number,
-        r1_0.a_string,
-        r1_0.created_by,
-        r1_0.nested_id
-    from
-        resource r1_0
-    where
-        not(r1_0.a_bool=true
-        and r1_0.a_string<>'string')
-*
-    *
-     */
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `nand`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "nand"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `nor`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "nor"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `in`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "in"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `gt`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "gt"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `lt`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "lt"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `gte`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "gte"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `lte`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "lte"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `equal-nested`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "equal-nested"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `relation-is-not`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "relation-is-not"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
-    @Suppress("RemoveRedundantBackticks")
-    @Test
-    override fun `relation-some`() {
-
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
-            id = "principal", resource = "resource", action = "relation-some"
-
-        )
-        resourceRepository.findAll(specification)
-
-    }
-
 
 }
