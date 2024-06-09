@@ -52,7 +52,7 @@ and it's corresponding repository that extends ```JpaSpecificationExecutor```
 @Repository
 interface ResourceRepository : CrudRepository<Resource, String>, JpaSpecificationExecutor<Resource>
 ```
-You declare a Specification Adapter by providing the resource as a type parameter 
+You declare a Specification Adapter by providing the resource as a type parameter & supply type mappings for your cerbos policies
 
 
 ```kotlin
@@ -60,10 +60,20 @@ You declare a Specification Adapter by providing the resource as a type paramete
 class ResourceSpecificationAdapter(
     cerbos: CerbosBlockingClient,
     principalRepository: PrincipalRepository,
-    policyPathToType: Map<String, Class<*>>
+    policyPathToType: Map<String, Class<*>> = mapOf(
+        "request.resource.attr.createdBy" to String::class.java,
+        "request.resource.attr.aBool" to Boolean::class.java,
+        "request.resource.attr.nested.aBool" to Boolean::class.java,
+        "request.resource.attr.aString" to String::class.java,
+        "request.resource.attr.aNumber" to Number::class.java
+    )
 ) : JpaSpecificationAdapter<Resource>(cerbos, principalRepository, policyPathToType)
 
+
+
 ```
+
+
 
 and implement the ```io.petebids.cerbos.queryplan.jpa.adapter.PrincipalRepository```  to fetch your principal objects for your Source of truth, cache - etc 
 
@@ -113,10 +123,19 @@ interface UserRepository : CrudRepository<User, String>
 then use the specification adapter to provide a Specification to filter your data 
 
 ```kotlin
-    
-    val specification: Specification<Resource> = resourceSpecificationAdapter.specificationFor(id = principalId, resource = "resource", action = "view")
-            
-    val resources: List<Resource> = resourceRepository.findAll(specification)
+
+@Service
+class ResourceService(
+    private val resourceSpecificationAdapter : ResourceSpecificationAdapter,
+    private val resourceRepository :ResourceRepository)
+
+    fun listResources() : List<Resource> {
+        val specification: Specification<Resource> = resourceSpecificationAdapter.specificationFor(id = principalId, resource = "resource", action = "view")
+
+        return resourceRepository.findAll(specification)
+        
+    }
+
 
 ```
 
@@ -124,13 +143,18 @@ Once you have your secure filter, you can then add user-supplied parameters as w
 
 ```kotlin
 
-    val specification: Specification<Resource> = resourceSpecificationAdapter.specificationFor(id = principalId, resource = "resource", action = "view")
+    fun listResourcesByName(name : String) : List<Resource> {
+        val specification: Specification<Resource> =
+            resourceSpecificationAdapter.specificationFor(id = principalId, resource = "resource", action = "view")
 
-    
-    specification.and { root, _, criteriaBuilder ->
-            criteriaBuilder.equal(root.get<String>("aString"), "aUserSuppliedQueryParameter")
+
+        specification.and { root, _, criteriaBuilder ->
+            criteriaBuilder.equal(root.get<String>("name"), name)
         }
+
+        val resources: List<Resource> = resourceRepository.findAll(specification)
         
-    val resources: List<Resource> = resourceRepository.findAll(specification)
+        return resources
+    }
 
 ```
