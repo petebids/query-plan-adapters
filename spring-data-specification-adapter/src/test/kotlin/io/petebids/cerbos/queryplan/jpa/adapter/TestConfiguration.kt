@@ -20,7 +20,7 @@ class TestConfig {
     fun resourceSpecificationGenerator(
         cerbos: CerbosBlockingClient,
         principalRepository: MockPrincipalRepository
-    ): ResourceSpecificationGenerator = ResourceSpecificationGenerator(
+    ): ResourceSpecificationAdapter = ResourceSpecificationAdapter(
         cerbos, principalRepository, mapOf(
             "request.resource.attr.createdBy" to String::class.java,
             "request.resource.attr.aBool" to Boolean::class.java,

@@ -18,7 +18,7 @@ import org.springframework.data.jpa.domain.Specification
 import java.util.UUID
 
 
-open class BaseCerbosAuthZSpecificationGeneratorV2<T : Any>(
+open class JpaSpecificationAdapter<T : Any>(
     private val cerbos: CerbosBlockingClient,
     private val principalRepository: PrincipalRepository,
     private val policyPathToType: Map<String, Class<*>>
@@ -34,11 +34,12 @@ open class BaseCerbosAuthZSpecificationGeneratorV2<T : Any>(
         )
 
         return when {
-            // no additional filtering needed
+            // This grants unconditional access - ads a no-op predicate
             result.isAlwaysAllowed -> {
                 logger.debug("unconditional access for action $action for  principal $id granted to resource kind $resource")
                 return allowed()}
-            // don't generate a specification
+            // This generates a specification that is always false
+            // alternatively, a runtime exception could be thrown here
             result.isAlwaysDenied -> {
                 logger.debug("unconditional deny for action $action for  principal $id granted to resource kind $resource")
                 return deny()

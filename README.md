@@ -1,9 +1,9 @@
-# Cerbos Query Plan Adapters
+# This fork 
 
-These adapters take a [Cerbos](https://cerbos.dev) Query Plan ([PlanResources API](https://docs.cerbos.dev/cerbos/latest/api/index.html#resources-query-plan)) response and converts it into a filter which can be applied to your data fetching layer to return just the instances of a resource that a user would have access to.
+This fork exists to house my personal, experimental code under 
+[spring-data-specification-adapter](https://github.com/petebids/query-plan-adapters/tree/main/spring-data-specification-adapter)
 
-Current supported adapters:
+This should NOT be trusted as an alternative to nor a source of truth for any of the other adapters, please refer back to https://github.com/cerbos/query-plan-adapters
 
-- [Prisma](https://github.com/cerbos/query-plan-adapters/tree/main/prisma)
-- [SQLAlchemy](https://github.com/cerbos/query-plan-adapters/tree/main/sqlalchemy)
-- [Mongoose](https://github.com/cerbos/query-plan-adapters/tree/main/mongoose)
+
+

@@ -127,7 +127,7 @@ class SpringDataSpecificationAdapterIntegrationTests {
     private lateinit var resourceRepository: ResourceRepository
 
     @Autowired
-    private lateinit var resourceSpecificationGenerator: ResourceSpecificationGenerator
+    private lateinit var resourceSpecificationAdapter: ResourceSpecificationAdapter
 
     @BeforeEach
     fun setup() {
@@ -178,10 +178,15 @@ class SpringDataSpecificationAdapterIntegrationTests {
     @MethodSource("testData")
     fun `smoke test with all actions`(testCase: TestCase) {
 
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
+        val specification: Specification<Resource> = resourceSpecificationAdapter.specificationFor(
             id = testCase.principal, resource = "resource", action = testCase.action
 
         )
+
+        specification.and { root, _, criteriaBuilder ->
+            criteriaBuilder.equal(root.get<String>("aString"), "aUserSuppliedQueryParameter")
+        }
+
         val resources: List<Resource> = resourceRepository.findAll(specification)
 
         assertEquals(testCase.expectedResultCount, resources.size)
@@ -191,7 +196,7 @@ class SpringDataSpecificationAdapterIntegrationTests {
         }
     }
 
-
+    // use this class as a short dev loop for iterating on a new case before pulling it up into io.petebids.cerbos.queryplan.jpa.adapter.SpringDataSpecificationAdapterIntegrationTests.Companion.testData
     @Test
     fun `test one`() {
 
@@ -199,7 +204,7 @@ class SpringDataSpecificationAdapterIntegrationTests {
             validator = { resources -> resources.count { it.name == "resource1" || it.name == "resource2" } == 2 })
 
 
-        val specification: Specification<Resource> = resourceSpecificationGenerator.specificationFor(
+        val specification: Specification<Resource> = resourceSpecificationAdapter.specificationFor(
             id = testCase.principal, resource = "resource", action = testCase.action
 
         )
