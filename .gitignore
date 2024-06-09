@@ -6,3 +6,5 @@ dist/
 *.pyc
 .pdm.toml
 .idea
+
+htmlReport/

@@ -1,4 +1,4 @@
-package dev.cerbos.springdataspecificationadapter
+package io.petebids.cerbos.queryplan.jpa.adapter
 
 import dev.cerbos.sdk.CerbosBlockingClient
 

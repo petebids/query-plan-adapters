@@ -1,4 +1,4 @@
-package dev.cerbos.springdataspecificationadapter
+package io.petebids.cerbos.queryplan.jpa.adapter
 
 
 import org.junit.Assert.assertEquals
@@ -59,7 +59,7 @@ class SpringDataSpecificationAdapterIntegrationTests {
             registry.add("spring.datasource.password", database::getPassword)
             registry.add("spring.datasource.driver-class-name", database::getDriverClassName)
             registry.add("spring.jpa.databasePlatform") { "org.hibernate.dialect.PostgreSQLDialect" }
-            val cerbosAddress : String = cerbos.host + ":" +cerbos.getMappedPort(3593)
+            val cerbosAddress : String = cerbos.host + ":" + cerbos.getMappedPort(3593)
 
             registry.add("cerbos.address") { cerbosAddress}
         }

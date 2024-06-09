@@ -1,8 +1,7 @@
-package dev.cerbos.springdataspecificationadapter
+package io.petebids.cerbos.queryplan.jpa.adapter
 
 import com.google.protobuf.Value
 import com.google.protobuf.util.JsonFormat
-import dev.cerbos.api.v1.engine.Engine
 import dev.cerbos.api.v1.engine.Engine.PlanResourcesFilter.Expression.Operand
 import dev.cerbos.sdk.CerbosBlockingClient
 import dev.cerbos.sdk.PlanResourcesResult
