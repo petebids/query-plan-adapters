@@ -183,10 +183,6 @@ class SpringDataSpecificationAdapterIntegrationTests {
 
         )
 
-        specification.and { root, _, criteriaBuilder ->
-            criteriaBuilder.equal(root.get<String>("aString"), "aUserSuppliedQueryParameter")
-        }
-
         val resources: List<Resource> = resourceRepository.findAll(specification)
 
         assertEquals(testCase.expectedResultCount, resources.size)
