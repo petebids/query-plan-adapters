@@ -25,7 +25,8 @@ class TestConfig {
             "request.resource.attr.createdBy" to String::class.java,
             "request.resource.attr.aBool" to Boolean::class.java,
             "request.resource.attr.nested.aBool" to Boolean::class.java,
-            "request.resource.attr.aString" to String::class.java
+            "request.resource.attr.aString" to String::class.java,
+            "request.resource.attr.aNumber" to Number::class.java
         )
     )
 }

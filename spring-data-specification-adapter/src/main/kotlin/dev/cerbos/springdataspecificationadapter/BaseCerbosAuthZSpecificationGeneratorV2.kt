@@ -3,7 +3,6 @@ package dev.cerbos.springdataspecificationadapter
 
 import com.google.protobuf.Value
 import com.google.protobuf.util.JsonFormat
-import dev.cerbos.api.v1.engine.Engine
 import dev.cerbos.api.v1.engine.Engine.PlanResourcesFilter.Expression.Operand
 import dev.cerbos.sdk.CerbosBlockingClient
 import dev.cerbos.sdk.PlanResourcesResult
@@ -40,7 +39,10 @@ open class BaseCerbosAuthZSpecificationGeneratorV2<T : Any>(
                 logger.debug("unconditional access for action $action for  principal $id granted to resource kind $resource")
                 return allowed()}
             // don't generate a specification
-            result.isAlwaysDenied -> throw RuntimeException()
+            result.isAlwaysDenied -> {
+                logger.debug("unconditional deny for action $action for  principal $id granted to resource kind $resource")
+                return deny()
+            }
             // generate a specification
             result.isConditional -> {
                 val op: Operand = result.condition.get()
@@ -211,13 +213,17 @@ open class BaseCerbosAuthZSpecificationGeneratorV2<T : Any>(
             Boolean::class.java -> value.boolValue
             UUID::class.java -> UUID.fromString(value.stringValue)
             String::class.java -> value.stringValue
+            Number::class.java -> value.numberValue
             else -> TODO()
         }
     }
 
     private fun <T> allowed(): Specification<T> = Specification { _: Root<T>, _, cb ->
         cb.equal(cb.literal(1), 1)
+    }
 
+    private fun <T> deny(): Specification<T> = Specification { _: Root<T>, _, cb ->
+        cb.equal(cb.literal(1), 0)
     }
 
 }

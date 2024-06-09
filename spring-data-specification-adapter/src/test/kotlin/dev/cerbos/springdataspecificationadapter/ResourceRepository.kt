@@ -6,4 +6,4 @@ import org.springframework.stereotype.Repository
 import java.util.UUID
 
 @Repository
-interface ResourceRepository : CrudRepository<Resource, UUID>, JpaSpecificationExecutor<Resource>
+interface ResourceRepository : CrudRepository<Resource, String>, JpaSpecificationExecutor<Resource>
