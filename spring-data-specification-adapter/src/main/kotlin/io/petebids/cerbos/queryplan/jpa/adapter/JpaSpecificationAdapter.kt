@@ -18,7 +18,7 @@ import org.springframework.data.jpa.domain.Specification
 import java.util.UUID
 
 
-open class BaseCerbosAuthZSpecificationGeneratorV2<T : Any>(
+open class JpaSpecificationAdapter<T : Any>(
     private val cerbos: CerbosBlockingClient,
     private val principalRepository: PrincipalRepository,
     private val policyPathToType: Map<String, Class<*>>

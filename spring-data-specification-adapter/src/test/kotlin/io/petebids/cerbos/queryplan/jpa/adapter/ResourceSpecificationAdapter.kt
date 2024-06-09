@@ -2,8 +2,8 @@ package io.petebids.cerbos.queryplan.jpa.adapter
 
 import dev.cerbos.sdk.CerbosBlockingClient
 
-class ResourceSpecificationGenerator(
+class ResourceSpecificationAdapter(
     cerbos: CerbosBlockingClient,
     principalRepository: PrincipalRepository,
     policyPathToType: Map<String, Class<*>>
-) : BaseCerbosAuthZSpecificationGeneratorV2<Resource>(cerbos, principalRepository, policyPathToType)
+) : JpaSpecificationAdapter<Resource>(cerbos, principalRepository, policyPathToType)
