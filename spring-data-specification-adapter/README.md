@@ -65,9 +65,15 @@ class ResourceSpecificationAdapter(
 
 ```
 
-and implement the ```PrincipalRepository```  to fetch your principal objects for your Source of truth, cache - etc 
+and implement the ```io.petebids.cerbos.queryplan.jpa.adapter.PrincipalRepository```  to fetch your principal objects for your Source of truth, cache - etc 
 
 ```kotlin
+fun interface PrincipalRepository {
+
+    fun retrievePrincipalById(id: String): dev.cerbos.sdk.builders.Principal?
+}
+
+
 @Repository
 class SpringSecurityPrincipalRepository  : PrincipalRepository{
     override fun retrievePrincipalById(id: String): Principal? {

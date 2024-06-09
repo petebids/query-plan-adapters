@@ -1,4 +1,4 @@
-name: Spirng JPA Specification Adapter
+name: Spring JPA Specification Adapter
 
 on:
   pull_request:
@@ -19,6 +19,6 @@ jobs:
         with:
           java-version: 21
           distribution: 'temurin'
-          cache: 'maven'
+
       - name: Test
         run: ./gradlew test
