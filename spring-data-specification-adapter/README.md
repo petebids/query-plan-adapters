@@ -146,13 +146,12 @@ Once you have your secure filter, you can then add user-supplied parameters as w
     fun listResourcesByName(name : String) : List<Resource> {
         val specification: Specification<Resource> =
             resourceSpecificationAdapter.specificationFor(id = principalId, resource = "resource", action = "view")
+        
 
-
-        specification.and { root, _, criteriaBuilder ->
-            criteriaBuilder.equal(root.get<String>("name"), name)
-        }
-
-        val resources: List<Resource> = resourceRepository.findAll(specification)
+        val resources: List<Resource> = resourceRepository.findAll(
+            specification.and { root, _, criteriaBuilder ->
+                criteriaBuilder.equal(root.get<String>("name"), name)
+            })
         
         return resources
     }
