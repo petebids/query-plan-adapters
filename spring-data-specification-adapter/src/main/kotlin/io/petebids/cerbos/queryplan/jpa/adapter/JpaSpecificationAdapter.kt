@@ -11,6 +11,7 @@ import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.Expression
 import jakarta.persistence.criteria.JoinType
+import jakarta.persistence.criteria.Path
 import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
 import org.slf4j.LoggerFactory
@@ -37,12 +38,13 @@ open class JpaSpecificationAdapter<T : Any>(
             // This grants unconditional access - ads a no-op predicate
             result.isAlwaysAllowed -> {
                 logger.debug("unconditional access for action $action for  principal $id granted to resource kind $resource")
-                return allowed()}
+                allowed()
+            }
             // This generates a specification that is always false
             // alternatively, a runtime exception could be thrown here
             result.isAlwaysDenied -> {
                 logger.debug("unconditional deny for action $action for  principal $id granted to resource kind $resource")
-                return deny()
+                 deny()
             }
             // generate a specification
             result.isConditional -> {
@@ -187,7 +189,7 @@ open class JpaSpecificationAdapter<T : Any>(
     }
 
     private fun <T> walkPath(r: Root<T>, cb: CriteriaBuilder, op: Operand): Expression<Any> {
-        return when {
+        when {
             op.hasVariable() -> {
 
                 val removePrefix = op.variable.removePrefix("request.resource.attr.")

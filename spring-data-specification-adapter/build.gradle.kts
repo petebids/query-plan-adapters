@@ -7,9 +7,10 @@ plugins {
     kotlin("jvm") version "1.9.23"
     kotlin("plugin.spring") version "1.9.23"
     kotlin("plugin.jpa") version "1.9.23"
+    id("java-library")
 }
 
-group = "dev.cerbos"
+group = "io.petebids"
 version = "0.0.1-SNAPSHOT"
 
 java {

@@ -1,13 +1,18 @@
 package io.petebids.cerbos.queryplan.jpa.adapter
 
 
+import ch.qos.logback.classic.LoggerContext
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.context.SpringBootTest
@@ -22,6 +27,7 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.utility.MountableFile
 import java.time.Duration
 import java.time.temporal.ChronoUnit
+
 import java.util.stream.Stream
 
 @SpringBootTest
@@ -30,6 +36,12 @@ import java.util.stream.Stream
 class SpringDataSpecificationAdapterIntegrationTests {
 
     companion object {
+        fun setHibernateLoggingLevel(level: Level) {
+            val loggerContext = LoggerFactory.getILoggerFactory() as LoggerContext
+            val logger = loggerContext.getLogger("org.hibernate") as Logger
+            logger.atLevel(level)
+        }
+
         @Container
         val cerbos: GenericContainer<*> = GenericContainer("cerbos/cerbos:0.36.0").apply {
             this.withExposedPorts(3593)
@@ -85,15 +97,18 @@ class SpringDataSpecificationAdapterIntegrationTests {
                 TestCase(
                     "and",
                     expectedResultCount = 1,
-                    validator = { resources -> resources.count { it.name == "resource3" } == 1 }),
+                    validator = { resources -> resources.map { it.name }.contains("resource3") }),
                 TestCase(
                     "equal",
                     expectedResultCount = 2,
-                    validator = { resources -> resources.count { it.name == "resource1" || it.name == "resource3" } == 2 }),
+                    validator = { resources ->
+                        resources.map { it.name }.containsAll(listOf("resource1", "resource3"))
+                    }),
                 TestCase(
                     "ne",
                     expectedResultCount = 2,
-                    validator = { resources -> resources.count { it.name == "resource2" || it.name == "resource3" } == 2 }),
+                    validator = { resources -> resources.map { it.name }.containsAll(listOf("resource2", "resource3")) }
+                ),
                 TestCase("or", expectedResultCount = 3),
                 TestCase("nand", expectedResultCount = 2),
                 TestCase("nor", expectedResultCount = 0),
@@ -101,23 +116,28 @@ class SpringDataSpecificationAdapterIntegrationTests {
                 TestCase(
                     "gt",
                     expectedResultCount = 2,
-                    validator = { resources -> resources.count { it.name == "resource2" || it.name == "resource3" } == 2 }),
+                    validator = { resources -> resources.map { it.name }.containsAll(listOf("resource2", "resource3")) }
+                ),
                 TestCase("gte", expectedResultCount = 3),
                 TestCase("lt", expectedResultCount = 1),
                 TestCase(
                     "lte",
                     expectedResultCount = 2,
-                    validator = { resources -> resources.count { it.name == "resource1" || it.name == "resource2" } == 2 }),
+                    validator = { resources -> resources.map { it.name }.containsAll(listOf("resource1", "resource2")) }
+                ),
                 TestCase("equal-nested", expectedResultCount = 2,
-                    validator = { resources -> resources.count { it.name == "resource1" || it.name == "resource3" } == 2 }),
+                    validator = { resources -> resources.map { it.name }.containsAll(listOf("resource1", "resource3")) }
+                ),
                 TestCase("relation-some", expectedResultCount = 2,
-                    validator = { resources -> resources.count { it.name == "resource1" || it.name == "resource2" } == 2 }),
+                    validator = { resources -> resources.map { it.name }.containsAll(listOf("resource1", "resource2")) }
+                ),
                 TestCase(
                     "relation-none",
                     expectedResultCount = 1,
                     validator = { resources -> resources.count { it.name == "resource3" } == 1 }),
                 TestCase("relation-is-not", expectedResultCount = 2,
-                    validator = { resources -> resources.count { it.name == "resource2" || it.name == "resource3" } == 2 }),
+                    validator = { resources -> resources.map { it.name }.containsAll(listOf("resource2", "resource3")) }
+                ),
             )
 
     }
@@ -131,6 +151,7 @@ class SpringDataSpecificationAdapterIntegrationTests {
 
     @BeforeEach
     fun setup() {
+
         resourceRepository.saveAll(
             listOf(
                 Resource(
@@ -188,7 +209,7 @@ class SpringDataSpecificationAdapterIntegrationTests {
         assertEquals(testCase.expectedResultCount, resources.size)
 
         testCase.validator?.let {
-            assert(it.invoke(resources))
+            assertTrue(it.invoke(resources))
         }
     }
 
@@ -209,19 +230,18 @@ class SpringDataSpecificationAdapterIntegrationTests {
         assertEquals(testCase.expectedResultCount, resources.size)
 
         testCase.validator?.let {
-            assert(it.invoke(resources))
+            assertTrue(it.invoke(resources))
         }
     }
 
 
 }
 
-fun printingValidator(): PostTestValidator = { resources -> resources.forEach { println(it) }; true }
 typealias PostTestValidator = (List<Resource>) -> Boolean
 
 data class TestCase(
     val action: String,
     val principal: String = "1",
     val expectedResultCount: Int,
-    val validator: PostTestValidator? = printingValidator(),
+    val validator: PostTestValidator? = null,
 )
